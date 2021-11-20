@@ -1,0 +1,31 @@
+{
+  "name": "node-aws-hw-1",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "task1": "nodemon --watch src --ext ts --exec ts-node ./src/task_1.ts",
+    "task2": "nodemon --watch src --ext ts --exec ts-node ./src/task_2.ts",
+    "build": "tsc"
+  },
+  "author": "Maksim Lisin",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^16.11.9",
+    "@types/split2": "^3.2.1",
+    "@typescript-eslint/eslint-plugin": "^5.4.0",
+    "@typescript-eslint/parser": "^5.4.0",
+    "eslint": "^8.2.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-import-resolver-typescript": "^2.5.0",
+    "eslint-plugin-import": "^2.25.3",
+    "nodemon": "^2.0.15",
+    "prettier": "^2.4.1",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.5.2"
+  },
+  "dependencies": {
+    "csvtojson": "^2.0.10",
+    "split2": "^4.1.0"
+  }
+}
