@@ -1,6 +1,7 @@
 import fs from 'fs';
 import split2 from 'split2';
-import { pipeline, PassThrough, Transform } from 'stream';
+import { pipeline } from 'stream/promises';
+import { Transform, Writable, TransformCallback } from 'stream';
 import csv from 'csvtojson';
 
 const PATH_TO_CSV = './nodejs-hw1-ex1.csv';
@@ -8,33 +9,48 @@ const OUTPUT_FILE = './csvOutput.txt';
 
 let header: null | string = null;
 
-const testStream = new PassThrough();
-
-testStream.on('data', (data) => {
-  console.log(data.toString());
-});
-
-const fakeDataBase = (data: string) => {
-  return new Promise<string>((resolve) => {
+const fakeInsertMany = (data: string[]) => {
+  return new Promise<string[]>((resolve) => {
     setTimeout(() => {
       resolve(data);
     }, 1000);
   });
 };
 
-const writeToDBStream = new Transform({
-  transform: async (chunk: Buffer, _, callback) => {
-    const dataRow = chunk.toString();
+const writableOutputStream = fs.createWriteStream(OUTPUT_FILE);
+const readFromFileStream = fs.createReadStream(PATH_TO_CSV);
+
+class WriteToFIleAndDBStream extends Writable {
+  private buffer: string[] = [];
+
+  constructor() {
+    super();
+  }
+
+  private async writeToDB() {
     try {
-      const response = await fakeDataBase(dataRow);
+      const response = await fakeInsertMany(this.buffer);
+      this.buffer = [];
       console.log('Data was written successfully', response);
-      callback(null, dataRow);
     } catch (error) {
       console.log('Error writing to database', error);
-      callback(null, dataRow);
     }
-  },
-});
+  }
+
+  async _write(chunk: Buffer, _: any, callback: TransformCallback) {
+    const dataRow = chunk.toString();
+    const canReadNext = writableOutputStream.write(chunk);
+    if (!canReadNext) {
+      readFromFileStream.pause();
+      writableOutputStream.once('drain', () => readFromFileStream.resume());
+    }
+    if (this.buffer.length >= 4) {
+      await this.writeToDB();
+    }
+    this.buffer.push(dataRow);
+    callback();
+  }
+}
 
 const transformStream = new Transform({
   transform: async (chunk: Buffer, _, callback) => {
@@ -50,25 +66,15 @@ const transformStream = new Transform({
   },
 });
 
-const convertFromCsv = async (pathToCsv: string, outputPath: string) => {
+const convertFromCsv = async () => {
   try {
-    await pipeline(
-      fs.createReadStream(pathToCsv),
-      split2(),
-      transformStream,
-      writeToDBStream,
-      fs.createWriteStream(outputPath),
-      (error) => {
-        if (error) {
-          console.log(error.message);
-        }
-      }
-    );
+    await pipeline(readFromFileStream, split2(), transformStream, new WriteToFIleAndDBStream());
+    console.log('Pipeline succeeded');
   } catch (error) {
     if (error instanceof Error) {
-      console.error(error.message);
+      console.error('Pipeline failed', error.message);
     }
   }
 };
 
-convertFromCsv(PATH_TO_CSV, OUTPUT_FILE);
+convertFromCsv();
